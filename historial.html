@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Historial de Registros</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+      body {
+        padding-top: 56px;
+        background-color: #f5f5f5;
+      }
+      
+      .navbar {
+        background-color: #0d6efd;
+      }
+      
+      .user-info {
+        color: white;
+        margin-right: 15px;
+      }
+      
+      .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      
+      .table-header {
+        background-color: #f8f9fa;
+        font-weight: bold;
+      }
+      
+      .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255,255,255,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      
+      .badge-pendiente {
+        background-color: #ffc107;
+        color: #212529;
+      }
+      
+      .badge-activo {
+        background-color: #198754;
+        color: white;
+      }
+      
+      .badge-cerrado {
+        background-color: #dc3545;
+        color: white;
+      }
+      
+      .action-buttons {
+        white-space: nowrap;
+      }
+      
+      .search-box {
+        max-width: 300px;
+      }
+
+      #modalEdicion .modal-xl {
+        max-width: 95%;
+      }
+
+      #modalEdicion .section-title {
+        color: var(--primary-color);
+        border-bottom: 2px solid var(--secondary-color);
+        padding-bottom: 10px;
+        margin-bottom: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        font-size: 1.2rem;
+      }
+
+      #modalEdicion .section-title i {
+        margin-right: 10px;
+        color: var(--secondary-color);
+      }
+
+      #modalEdicion .section-card {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 5px rgba(0,0,0,0.05);
+        padding: 15px;
+        transition: all 0.3s ease;
+      }
+
+      #modalEdicion .added-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+        border: 1px solid #e1e5e8;
+        border-radius: 6px;
+        padding: 8px;
+        background-color: #f8f9fa;
+      }
+
+      #modalEdicion .added-item-text {
+        flex-grow: 1;
+        margin-right: 10px;
+      }
+
+      #modalEdicion .btn-remove {
+        background: none;
+        border: none;
+        color: var(--danger-color);
+        cursor: pointer;
+        transition: transform 0.2s ease;
+      }
+
+      #modalEdicion .btn-remove:hover {
+        transform: scale(1.2);
+      }
+
+      @media (max-width: 768px) {
+        #modalEdicion .modal-xl {
+          max-width: 100%;
+          margin: 0 10px;
+        }
+      }
+      
+    </style>
+  </head>
+  
+  <body>
+    <!-- Barra de navegación -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+      <div class="container-fluid">
+        <a class="navbar-brand" href="#">Sistema de Registro de Bandas Criminales</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav">
+            <li class="nav-item">
+              <a class="nav-link" href="<?= ScriptApp.getService().getUrl(); ?>?action=formulario">
+                <i class="fas fa-file-alt me-1"></i> Formulario
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link active" href="<?= ScriptApp.getService().getUrl(); ?>?action=historial">
+                <i class="fas fa-history me-1"></i> Historial
+              </a>
+            </li>
+          </ul>
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <span class="user-info">
+                <i class="fas fa-user me-1"></i><span id="username">Usuario</span>
+              </span>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#" id="btnLogout">
+                <i class="fas fa-sign-out-alt me-1"></i> Cerrar Sesión
+              </a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    
+    <!-- Contenido principal -->
+    <div class="container mt-4">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h4 class="mb-0">
+            <i class="fas fa-history text-primary me-2"></i>Historial de Registros
+          </h4>
+          <div>
+            <button id="btnExportExcel" class="btn btn-success">
+              <i class="fas fa-file-excel me-1"></i> Excel
+            </button>
+            <button id="btnExportPDF" class="btn btn-danger ms-2">
+              <i class="fas fa-file-pdf me-1"></i> PDF
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <div class="input-group search-box">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="text" class="form-control" id="searchInput" placeholder="Buscar...">
+              </div>
+            </div>
+          </div>
+          
+          <div class="table-responsive">
+            <table class="table table-striped table-hover" id="tablaRegistros">
+              <thead class="table-header">
+                <tr>
+                  <th>Fecha de Registro</th>
+                  <th>Fiscalía</th>
+                  <th>Fiscal a cargo</th>
+                  <th>Carpeta Fiscal</th>
+                  <th>Fecha de Ingreso</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody id="tablaCuerpo">
+                <!-- Los registros se cargarán aquí -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div id="sinRegistros" class="alert alert-info" style="display: none;">
+            No hay registros disponibles.
+          </div>
+          
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <div id="infoRegistros">Mostrando 0 de 0 registros</div>
+            <div>
+              <button id="btnAnterior" class="btn btn-sm btn-outline-primary" disabled>Anterior</button>
+              <button id="btnSiguiente" class="btn btn-sm btn-outline-primary ms-2" disabled>Siguiente</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Modal de l boton editarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr -->
+ 
+    <!-- Modal de Edición Completo y Mejorado -->
+    <div class="modal fade" id="modalEdicion" tabindex="-1" aria-labelledby="modalEdicionLabel" aria-hidden="true">
+      <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title" id="modalEdicionLabel">Editar Registro</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+          <div class="modal-body">
+            <form id="formEdicion">
+              <input type="hidden" id="editId" name="ID">
+              
+              <!-- 1. Información General -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-info-circle"></i> 1. Información General</h3>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="editFiscalia" class="form-label">Fiscalía</label>
+                    <select class="form-select" id="editFiscalia" name="Fiscalía">
+                      <option value="">Seleccione la fiscalía</option>
+                      <option value="PRIMERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 1">PRIMERA FISCALIA - EQUIPO 1</option>
+                      <option value="PRIMERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 2">PRIMERA FISCALIA - EQUIPO 2</option>
+                      <option value="PRIMERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 3">PRIMERA FISCALIA - EQUIPO 3</option>
+                      <option value="PRIMERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 4">PRIMERA FISCALIA - EQUIPO 4</option>
+                      <option value="SEGUNDA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 1">SEGUNDA FISCALIA - EQUIPO 1</option>
+                      <option value="SEGUNDA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 2">SEGUNDA FISCALIA - EQUIPO 2</option>
+                      <option value="SEGUNDA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 3">SEGUNDA FISCALIA - EQUIPO 3</option>
+                      <option value="SEGUNDA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 4">SEGUNDA FISCALIA - EQUIPO 4</option>
+                      <option value="TERCERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 1">TERCERA FISCALIA - EQUIPO 1</option>
+                      <option value="TERCERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 2">TERCERA FISCALIA - EQUIPO 2</option>
+                      <option value="TERCERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 3">TERCERA FISCALIA - EQUIPO 3</option>
+                      <option value="TERCERA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 4">TERCERA FISCALIA - EQUIPO 4</option>
+                      <option value="CUARTA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 1">CUARTA FISCALIA - EQUIPO 1</option>
+                      <option value="CUARTA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 2">CUARTA FISCALIA - EQUIPO 2</option>
+                      <option value="CUARTA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 3">CUARTA FISCALIA - EQUIPO 3</option>
+                      <option value="CUARTA FISCALIA SUPRAPROVINCIAL CORPORATIVA ESPECIALIZADA CONTRA LA CRIMINALIDAD ORGANIZADA - EQUIPO 4">CUARTA FISCALIA - EQUIPO 4</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editFiscalCargo" class="form-label">Fiscal a Cargo</label>
+                    <input type="text" class="form-control" id="editFiscalCargo" name="Fiscal a Cargo">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editUnidadInteligencia" class="form-label">Unidad de Inteligencia</label>
+                    <input type="text" class="form-control" id="editUnidadInteligencia" name="Unidad de Inteligencia">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editInstructorCargo" class="form-label">Instructor a Cargo</label>
+                    <input type="text" class="form-control" id="editInstructorCargo" name="Instructor a Cargo">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 2. Detalles del Caso -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-folder-open"></i> 2. Detalles del Caso</h3>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="editFormaInicio" class="form-label">Forma de Inicio de Investigación</label>
+                    <select class="form-select" id="editFormaInicio" name="Forma de Inicio de Investigación">
+                      <option value="">Seleccionar...</option>
+                      <option value="Denuncia de Parte">Denuncia de Parte</option>
+                      <option value="Información de Fuente Humana">Información de Fuente Humana</option>
+                      <option value="Informante">Informante</option>
+                      <option value="Testigo Protegido">Testigo Protegido</option>
+                      <option value="Búsqueda de Fuente Abierta">Búsqueda de Fuente Abierta</option>
+                      <option value="Colaborador Eficaz">Colaborador Eficaz</option>
+                      <option value="Otros">Otros</option>
+                    </select>
+                    <div id="editOtroFormaInicioContainer" style="display: none;" class="mt-2">
+                      <input type="text" class="form-control" id="editOtroFormaInicio" placeholder="Especifique otra forma de inicio">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editCarpetaFiscal" class="form-label">Carpeta Fiscal</label>
+                    <input type="text" class="form-control" id="editCarpetaFiscal" name="Carpeta Fiscal">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editFechaHecho" class="form-label">Fecha del Hecho</label>
+                    <input type="date" class="form-control" id="editFechaHecho" name="Fecha del Hecho">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editFechaIngreso" class="form-label">Fecha Ingreso Carpeta Fiscal</label>
+                    <input type="date" class="form-control" id="editFechaIngreso" name="Fecha Ingreso Carpeta Fiscal">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editEtapaCaso" class="form-label">Etapas del Caso</label>
+                    <select class="form-select" id="editEtapaCaso" name="Etapas del Caso">
+                      <option value="">Seleccionar...</option>
+                      <option value="Calificación">Calificación</option>
+                      <option value="Investigación Preliminar">Investigación Preliminar</option>
+                      <option value="Investigación Preparatoria">Investigación Preparatoria</option>
+                      <option value="Etapa Intermedia">Etapa Intermedia</option>
+                      <option value="Etapa Juzgamiento">Etapa Juzgamiento</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 3. Información del Agraviado -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-user-shield"></i> 3. Información del Agraviado</h3>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="editTipoAgraviado" class="form-label">Tipo de Agraviado</label>
+                    <select class="form-select" id="editTipoAgraviado" name="Tipo de Agraviado">
+                      <option value="">Seleccionar...</option>
+                      <option value="Natural">Natural</option>
+                      <option value="Jurídica">Jurídica</option>
+                    </select>
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editFuncionEjerce" class="form-label">Función que Ejerce</label>
+                    <select class="form-select" id="editFuncionEjerce" name="Función que Ejerce">
+                      <option value="">Seleccionar...</option>
+                      <option value="Pública">Función Pública</option>
+                      <option value="Privada">Función Privada</option>
+                    </select>
+                  </div>
+                  
+                  <!-- Agraviados -->
+                  <div class="col-md-6">
+                    <label class="form-label">Agraviados</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editAgraviadoInput" placeholder="Nombre del agraviado">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddAgraviado">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editAgraviadosContainer" class="mt-2">
+                      <!-- Aquí se mostrarán los agraviados agregados -->
+                    </div>
+                    <input type="hidden" id="editAgraviados" name="Agraviados">
+                  </div>
+                  
+                  <!-- Tipo de Empresa -->
+                  <div class="col-md-6">
+                    <label class="form-label">Tipo de Empresa</label>
+                    <div class="input-group mb-2">
+                      <select class="form-select" id="editTipoEmpresaSelect">
+                        <option value="">Seleccionar...</option>
+                        <option value="Empresa Pública">Empresa Pública</option>
+                        <option value="Empresa Privada">Empresa Privada</option>
+                      </select>
+                      <input type="text" class="form-control" id="editNombreEmpresaInput" placeholder="Nombre de la empresa">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddEmpresa">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editEmpresasContainer" class="mt-2">
+                      <!-- Aquí se mostrarán las empresas agregadas -->
+                    </div>
+                    <input type="hidden" id="editTipoEmpresa" name="Tipo de Empresa">
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 4. Información del Denunciado -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-user-times"></i> 4. Información del Denunciado</h3>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="editDelitos" class="form-label">Delitos</label>
+                    <input type="text" class="form-control" id="editDelitos" name="Delitos">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="editLugarHechos" class="form-label">Lugar de los Hechos</label>
+                    <input type="text" class="form-control" id="editLugarHechos" name="Lugar de los Hechos">
+                  </div>
+                  
+                  <!-- Denunciados -->
+                  <div class="col-md-6">
+                    <label class="form-label">Denunciados</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editDenunciadoInput" placeholder="Nombre o alias del denunciado">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddDenunciado">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editDenunciadosContainer" class="mt-2">
+                      <!-- Aquí se mostrarán los denunciados agregados -->
+                    </div>
+                    <input type="hidden" id="editDenunciados" name="Denunciados">
+                  </div>
+                  
+                  <!-- Datos de Interés del Denunciado -->
+                  <div class="col-md-6">
+                    <label class="form-label">Datos de Interés del Denunciado</label>
+                    <div class="mb-2">
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="editDatosTatuajes" name="editDatosTatuajes">
+                        <label class="form-check-label" for="editDatosTatuajes">Tatuajes</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="editDatosCicatrices" name="editDatosCicatrices">
+                        <label class="form-check-label" for="editDatosCicatrices">Cicatrices</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="editDatosOtros" name="editDatosOtros">
+                        <label class="form-check-label" for="editDatosOtros">Otros</label>
+                      </div>
+                    </div>
+                    <div id="editOtrosDatosContainer" style="display: none;">
+                      <input type="text" class="form-control" id="editOtrosDatosInput" placeholder="Especificar otros datos de interés">
+                    </div>
+                    <input type="hidden" id="editDatosInteresDenunciado" name="Datos de Interés del Denunciado">
+                  </div>
+
+                  <!-- En la sección de Información del Denunciado, añadir después de los checkboxes -->
+                  <div class="col-md-6">
+                    <label for="editNombreBanda" class="form-label">Nombre/Apodo Banda Criminal</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editBandaInput" placeholder="Nombre o apodo de la banda">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddBanda">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editBandasContainer" class="mt-2">
+                      <!-- Aquí se mostrarán las bandas agregadas -->
+                    </div>
+                    <input type="hidden" id="editNombreBanda" name="Nombre/Apodo Banda Criminal">
+                  </div>
+
+                  <div class="col-md-6">
+                    <label for="editCantidadMiembros" class="form-label">Cantidad de Miembros de Banda</label>
+                    <input type="number" class="form-control" id="editCantidadMiembros" name="Cantidad de Miembros de Banda" min="0">
+                  </div>
+
+                  
+                  <!-- Modalidades -->
+                  <div class="col-md-6">
+                    <label for="editModalidadViolencia" class="form-label">Modalidad de Violencia</label>
+                    <textarea class="form-control" id="editModalidadViolencia" name="Modalidad de Violencia" rows="2"></textarea>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="editModalidadAmenaza" class="form-label">Modalidad de Amenaza</label>
+                    <textarea class="form-control" id="editModalidadAmenaza" name="Modalidad de Amenaza" rows="2"></textarea>
+                  </div>
+                  
+                  <div class="col-md-12">
+                    <label for="editAtentadosCometidos" class="form-label">Atentados Cometidos</label>
+                    <textarea class="form-control" id="editAtentadosCometidos" name="Atentados Cometidos" rows="2"></textarea>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- 5. Instrumentos y Métodos de Extorsión -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-tools"></i> 5. Instrumentos y Métodos de Extorsión</h3>
+                <div class="row g-3">
+                  <!-- Instrumentos de Extorsión -->
+                  <div class="col-md-6">
+                    <label class="form-label">Instrumentos de Extorsión</label>
+                    <div class="mb-2">
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editInstrumentoMotos" name="editInstrumentoMotos">
+                        <label class="form-check-label" for="editInstrumentoMotos">Motos</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editInstrumentoCarros" name="editInstrumentoCarros">
+                        <label class="form-check-label" for="editInstrumentoCarros">Carros</label>
+                      </div>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="editInstrumentoOtros" name="editInstrumentoOtros">
+                        <label class="form-check-label" for="editInstrumentoOtros">Otros</label>
+                      </div>
+                    </div>
+                    <div id="editOtrosInstrumentosContainer" style="display: none;">
+                      <div class="input-group mb-2">
+                        <input type="text" class="form-control" id="editOtrosInstrumentosInput" placeholder="Especificar otro instrumento">
+                        <button class="btn btn-outline-secondary" type="button" id="editBtnAddInstrumento">
+                          <i class="fas fa-plus"></i>
+                        </button>
+                      </div>
+                      <div id="editInstrumentosExtraContainer" class="mt-2">
+                        <!-- Aquí se mostrarán los instrumentos personalizados -->
+                      </div>
+                    </div>
+                    <input type="hidden" id="editInstrumentosExtorsion" name="Instrumentos de Extorsión">
+                  </div>
+                  
+                  <!-- Forma de Pago -->
+                  <div class="col-md-6">
+                    <label for="editFormaPago" class="form-label">Forma de Pago</label>
+                    <select class="form-select" id="editFormaPago" name="Forma de Pago">
+                      <option value="">Seleccionar...</option>
+                      <option value="Yape">Yape</option>
+                      <option value="Plin">Plin</option>
+                      <option value="Transferencias">Transferencias</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                    <div id="editOtraFormaPagoContainer" style="display: none;" class="mt-2">
+                      <input type="text" class="form-control" id="editOtraFormaPagoInput" placeholder="Especificar otra forma de pago">
+                    </div>
+                  </div>
+                  
+                  <!-- Números Telefónicos -->
+                  <div class="col-md-6">
+                    <label class="form-label">Números Telefónicos</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editTelefonoInput" placeholder="Número telefónico">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddTelefono">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editTelefonosContainer" class="mt-2">
+                      <!-- Aquí se mostrarán los números telefónicos -->
+                    </div>
+                    <input type="hidden" id="editNumerosTelefonicos" name="Números Telefónicos">
+                  </div>
+                  
+                  <!-- IMEI de Teléfonos -->
+                  <div class="col-md-6">
+                    <label class="form-label">IMEI de Teléfonos</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editImeiInput" placeholder="IMEI del teléfono">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddImei">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editImeiContainer" class="mt-2">
+                      <!-- Aquí se mostrarán los IMEIs -->
+                    </div>
+                    <input type="hidden" id="editImeiTelefonos" name="IMEI de Teléfonos">
+                  </div>
+                  
+                  <!-- Cuenta de Pago -->
+                  <div class="col-md-6">
+                    <label class="form-label">Cuenta de Pago</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editCuentaInput" placeholder="Número de cuenta">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddCuenta">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editCuentasContainer" class="mt-2">
+                      <!-- Aquí se mostrarán las cuentas -->
+                    </div>
+                    <input type="hidden" id="editCuentaPago" name="Cuenta de Pago">
+                  </div>
+                  
+                  <!-- Titulares de Pago -->
+                  <div class="col-md-6">
+                    <label class="form-label">Titulares de Pago</label>
+                    <div class="input-group mb-2">
+                      <input type="text" class="form-control" id="editTitularInput" placeholder="Nombre del titular">
+                      <button class="btn btn-outline-secondary" type="button" id="editBtnAddTitular">
+                        <i class="fas fa-plus"></i>
+                      </button>
+                    </div>
+                    <div id="editTitularesContainer" class="mt-2">
+                      <!-- Aquí se mostrarán los titulares -->
+                    </div>
+                    <input type="hidden" id="editTitularesPago" name="Titulares de Pago">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. Datos de Interés de Pagos -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-money-bill-wave"></i> 6. Datos de Interés de Pagos</h3>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label for="editTipoPago" class="form-label">Tipo de Pago</label>
+                    <select class="form-select" id="editTipoPago" name="Tipo de Pago">
+                      <option value="">Seleccionar...</option>
+                      <option value="Mensual">Mensual</option>
+                      <option value="Quincenal">Quincenal</option>
+                      <option value="Semanal">Semanal</option>
+                      <option value="Único">Único</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                    <div id="editOtroTipoPagoContainer" style="display: none;" class="mt-2">
+                      <input type="text" class="form-control" id="editOtroTipoPagoInput" placeholder="Especificar otro tipo">
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="editMontoSolicitado" class="form-label">Monto Solicitado</label>
+                    <div class="input-group">
+                      <span class="input-group-text">S/</span>
+                      <input type="number" class="form-control" id="editMontoSolicitado" name="Monto Solicitado" step="0.01" min="0">
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="editMontoPagado" class="form-label">Monto Pagado</label>
+                    <div class="input-group">
+                      <span class="input-group-text">S/</span>
+                      <input type="number" class="form-control" id="editMontoPagado" name="Monto Pagado" step="0.01" min="0">
+                    </div>
+                  </div>
+                  
+                  <div class="col-md-6">
+                    <label for="editNumeroPagos" class="form-label">Número de Pagos</label>
+                    <input type="number" class="form-control" id="editNumeroPagos" name="Número de Pagos" min="0">
+                  </div>
+                  
+                  <div class="col-md-12">
+                    <label for="editOtrosTiposPago" class="form-label">Otros Tipos de Pago</label>
+                    <input type="text" class="form-control" id="editOtrosTiposPago" name="Otros Tipos de Pago">
+                  </div>
+                </div>
+              </div>
+              <!-- 7. Sumilla y Observaciones -->
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-align-left"></i> 7. Sumilla</h3>
+                <div class="row">
+                  <div class="col-12 mb-3">
+                    <label for="editSumilla" class="form-label">Sumilla de Hechos</label>
+                    <textarea class="form-control" id="editSumilla" name="Sumilla de Hechos" rows="3"></textarea>
+                    <small class="text-muted d-flex justify-content-end mt-1"><span id="editSumillaCounter">0</span> caracteres</small>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-card mb-4">
+                <h3 class="section-title"><i class="fas fa-clipboard"></i> 8. Observaciones</h3>
+                <div class="row">
+                  <div class="col-12 mb-3">
+                    <label for="editObservaciones" class="form-label"> Observaciones</label>
+                    <textarea class="form-control" id="editObservaciones" name="Observaciones" rows="2"></textarea>
+                    <small class="text-muted d-flex justify-content-end mt-1"><span id="editObservacionesCounter">0</span> caracteres</small>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="btnGuardarCambios">
+              <i class="fas fa-save me-1"></i> Guardar Cambios
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    
+    <!-- Indicador de carga -->
+    <div id="loadingIndicator" class="loading" style="display: none;">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Cargando...</span>
+      </div>
+    </div>
+    
+    <!-- Bootstrap JS y jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+
+      function updateCharCounter(inputSelector, counterSelector) {
+        const length = $(inputSelector).val().length;
+        $(counterSelector).text(length);
+      }
+
+
+      // Constantes
+      const STORAGE_KEY = 'fecor_registros';
+      const EDIT_KEY = 'fecor_registro_editar';
+      
+      // Variables de paginación
+      let registrosFiltrados = [];
+      let paginaActual = 1;
+      let registrosPorPagina = 10;
+      let terminoBusqueda = '';
+
+      let editAgraviadosList = [];
+      let editDenunciadosList = [];
+      let editEmpresasList = [];
+
+      let editBandasList = [];
+      let editImeiList = [];
+      let editCuentasList = [];
+      let editTitularesList = [];
+      let editTelefonosList = [];
+      let editInstrumentosList = [];
+      
+      // Elementos DOM frecuentemente usados
+      const tablaCuerpo = document.getElementById('tablaCuerpo');
+      const infoRegistros = document.getElementById('infoRegistros');
+      const sinRegistros = document.getElementById('sinRegistros');
+      const btnAnterior = document.getElementById('btnAnterior');
+      const btnSiguiente = document.getElementById('btnSiguiente');
+      const searchInput = document.getElementById('searchInput');
+      
+      // Cuando el documento está listo
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log('Inicializando página de historial...');
+        
+        // Cargar nombre de usuario
+        cargarInfoUsuario();
+        
+        // Cargar datos iniciales
+        cargarRegistros();
+        
+        // Eventos de botones
+        document.getElementById('btnLogout').addEventListener('click', cerrarSesion);
+        document.getElementById('btnExportExcel').addEventListener('click', exportarExcel);
+        document.getElementById('btnExportPDF').addEventListener('click', exportarPDF);
+        btnAnterior.addEventListener('click', paginaAnterior);
+        btnSiguiente.addEventListener('click', paginaSiguiente);
+        searchInput.addEventListener('input', buscarRegistros);
+      });
+
+      // Manejar el guardado de cambios desde el modal
+      document.getElementById('btnGuardarCambios').addEventListener('click', function() {
+        try {
+          const formulario = document.getElementById('formEdicion');
+          const id = document.getElementById('editId').value;
+          
+          if (!id) {
+            alert("ID de registro no encontrado");
+            return;
+          }
+          
+          // Crear objeto con los datos del formulario
+          const formData = {};
+          
+          // Recorrer todos los elementos del formulario
+          const elementos = formulario.elements;
+          
+          for (let i = 0; i < elementos.length; i++) {
+            const elemento = elementos[i];
+            const nombreCampo = elemento.name;
+            
+            if (!nombreCampo) continue;
+            
+            // Obtener valor según el tipo de elemento
+            if (elemento.type === 'checkbox') {
+              formData[nombreCampo] = elemento.checked ? 'Sí' : 'No';
+            } else {
+              formData[nombreCampo] = elemento.value;
+            }
+          }
+          
+          // Asegurar que el ID esté presente
+          formData.ID = id;
+          
+          // Mostrar indicador de carga
+          const btnGuardar = document.getElementById('btnGuardarCambios');
+          const textoOriginal = btnGuardar.innerHTML;
+          btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
+          btnGuardar.disabled = true;
+          
+          // Llamar a la función del servidor para actualizar
+          google.script.run
+            .withSuccessHandler(function(result) {
+              btnGuardar.innerHTML = textoOriginal;
+              btnGuardar.disabled = false;
+              
+              if (result.success) {
+                // Actualizar también en localStorage
+                actualizarRegistroEnLocalStorage(id, formData);
+                
+                // Cerrar el modal
+                bootstrap.Modal.getInstance(document.getElementById('modalEdicion')).hide();
+                
+                // Mostrar mensaje de éxito
+                alert("Registro actualizado correctamente");
+                
+                // Recargar la tabla
+                cargarRegistros();
+              } else {
+                alert("Error al actualizar: " + result.message);
+              }
+            })
+            .withFailureHandler(function(error) {
+              btnGuardar.innerHTML = textoOriginal;
+              btnGuardar.disabled = false;
+              console.error("Error al actualizar registro:", error);
+              alert("Error al actualizar: " + (error.message || error));
+            })
+            .updateCaso(id, formData);
+            
+        } catch (error) {
+          console.error("Error al guardar cambios:", error);
+          alert("Error al procesar el formulario");
+        }
+      });
+
+      function actualizarRegistroEnLocalStorage(id, nuevosDatos) {
+        try {
+          console.log("Actualizando registro en localStorage, ID:", id);
+          
+          const datosString = localStorage.getItem('fecor_registros');
+          
+          if (!datosString) {
+            console.error("No hay registros en localStorage para actualizar");
+            return;
+          }
+          
+          let datos = JSON.parse(datosString);
+          let actualizado = false;
+          let registroActualizado = null;
+          
+          // Buscar y quitar el registro del array
+          for (let i = 0; i < datos.length; i++) {
+            if (String(datos[i].ID) === String(id) || 
+                String(datos[i].id) === String(id)) {
+              
+              console.log("Encontrado registro a actualizar en posición", i);
+              
+              // Crear una copia profunda para evitar referencias
+              const registroOriginal = { ...datos[i] };
+              
+              // Combinar datos originales con los nuevos
+              registroActualizado = { ...registroOriginal, ...nuevosDatos };
+              
+              // Asegurar que todos los valores estén en mayúsculas
+              for (const key in registroActualizado) {
+                if (typeof registroActualizado[key] === 'string' && key !== 'ID') {
+                  registroActualizado[key] = registroActualizado[key].toUpperCase();
+                }
+              }
+              
+              // Quitar del array para reposicionarlo
+              datos.splice(i, 1);
+              actualizado = true;
+              break;
+            }
+          }
+          
+          if (actualizado && registroActualizado) {
+            // Añadir el registro actualizado al inicio
+            datos.unshift(registroActualizado);
+            
+            // Guardar de vuelta en localStorage
+            localStorage.setItem('fecor_registros', JSON.stringify(datos));
+            console.log("localStorage actualizado con éxito");
+          } else {
+            console.warn("No se encontró el registro para actualizar en localStorage");
+          }
+          
+        } catch (error) {
+          console.error("Error al actualizar localStorage:", error);
+        }
+      }
+
+
+      // Inicializar eventos para el modal de edición
+      $(document).ready(function() {
+        // Manejar visibilidad de campos condicionales
+        $('#editFormaInicio').change(function() {
+          if ($(this).val() === 'Otros') {
+            $('#editOtroFormaInicioContainer').show();
+          } else {
+            $('#editOtroFormaInicioContainer').hide();
+          }
+        });
+        
+        $('#editDatosOtros').change(function() {
+          if ($(this).prop('checked')) {
+            $('#editOtrosDatosContainer').show();
+          } else {
+            $('#editOtrosDatosContainer').hide();
+          }
+        });
+        
+        $('#editInstrumentoOtros').change(function() {
+          if ($(this).prop('checked')) {
+            $('#editOtrosInstrumentosContainer').show();
+          } else {
+            $('#editOtrosInstrumentosContainer').hide();
+          }
+        });
+        
+        $('#editFormaPago').change(function() {
+          if ($(this).val() === 'Otro') {
+            $('#editOtraFormaPagoContainer').show();
+          } else {
+            $('#editOtraFormaPagoContainer').hide();
+          }
+        });
+        
+        // Inicializar botones para agregar elementos
+        $('#editBtnAddAgraviado').click(function() {
+          const agraviado = $('#editAgraviadoInput').val().trim();
+          if (agraviado) {
+            addItemToEditList(agraviado, editAgraviadosList, '#editAgraviadosContainer', 'agraviado');
+            $('#editAgraviadoInput').val('').focus();
+          }
+        });
+        
+        $('#editBtnAddDenunciado').click(function() {
+          const denunciado = $('#editDenunciadoInput').val().trim();
+          if (denunciado) {
+            addItemToEditList(denunciado, editDenunciadosList, '#editDenunciadosContainer', 'denunciado');
+            $('#editDenunciadoInput').val('').focus();
+          }
+        });
+        
+        $('#editBtnAddEmpresa').click(function() {
+          const tipoEmpresa = $('#editTipoEmpresaSelect').val();
+          const nombreEmpresa = $('#editNombreEmpresaInput').val().trim();
+          if (tipoEmpresa && nombreEmpresa) {
+            const empresa = tipoEmpresa + ' (' + nombreEmpresa + ')';
+            addItemToEditList(empresa, editEmpresasList, '#editEmpresasContainer', 'empresa');
+            $('#editNombreEmpresaInput').val('').focus();
+          }
+        });
+        
+        $('#editBtnAddTelefono').click(function() {
+          const telefono = $('#editTelefonoInput').val().trim();
+          if (telefono) {
+            addItemToEditList(telefono, editTelefonosList, '#editTelefonosContainer', 'telefono');
+            $('#editTelefonoInput').val('').focus();
+          }
+        });
+        
+        $('#editBtnAddInstrumento').click(function() {
+          const instrumento = $('#editOtrosInstrumentosInput').val().trim();
+          if (instrumento) {
+            addItemToEditList(instrumento, editInstrumentosList, '#editInstrumentosExtraContainer', 'instrumento');
+            $('#editOtrosInstrumentosInput').val('').focus();
+          }
+        });
+        
+        // Contador de caracteres para textareas
+        $('#editSumilla, #editObservaciones').on('input', function() {
+          const id = $(this).attr('id');
+          const counter = '#' + id + 'Counter';
+          updateCharCounter('#' + id, counter);
+        });
+
+
+        // Añadir en la función donde inicializas los eventos para el modal (o en document.ready)
+        $('#editBtnAddBanda').click(function() {
+          const banda = $('#editBandaInput').val().trim();
+          if (banda) {
+            addItemToEditList(banda, editBandasList, '#editBandasContainer', 'banda');
+            $('#editBandaInput').val('').focus();
+          }
+        });
+        // Añade esto en la sección donde inicializas los eventos del modal
+        $('#editBtnAddImei').click(function() {
+          const imei = $('#editImeiInput').val().trim();
+          if (imei) {
+            addItemToEditList(imei, editImeiList, '#editImeiContainer', 'imei');
+            $('#editImeiInput').val('').focus();
+          }
+        });
+     
+
+        $('#editBtnAddCuenta').click(function() {
+          const cuenta = $('#editCuentaInput').val().trim();
+          if (cuenta) {
+            addItemToEditList(cuenta, editCuentasList, '#editCuentasContainer', 'cuenta');
+            $('#editCuentaInput').val('').focus();
+          }
+        });
+
+        $('#editBtnAddTitular').click(function() {
+          const titular = $('#editTitularInput').val().trim();
+          if (titular) {
+            addItemToEditList(titular, editTitularesList, '#editTitularesContainer', 'titular');
+            $('#editTitularInput').val('').focus();
+          }
+        });
+
+        // Manejar el tipo de pago con opción "Otro"
+        $('#editTipoPago').change(function() {
+          if ($(this).val() === 'Otro') {
+            $('#editOtroTipoPagoContainer').show();
+          } else {
+            $('#editOtroTipoPagoContainer').hide();
+          }
+        });
+
+
+        
+        // Evento de guardar cambios
+        $('#btnGuardarCambios').click(guardarCambiosModal);
+      });
+
+
+      function cargarRegistros() {
+        mostrarCargando();
+        console.log('Cargando registros...');
+      
+        try {
+          // Intentar cargar desde localStorage
+          const datosString = localStorage.getItem(STORAGE_KEY);
+          
+          if (datosString) {
+            const datos = JSON.parse(datosString);
+            console.log(`Se encontraron ${datos.length} registros en localStorage`);
+            
+            // NO ordenar por fecha, sino mantener el orden de creación
+            // Los registros nuevos estarán al principio si se guardan en ese orden
+            registrosFiltrados = datos;
+            actualizarTabla();
+          } else {
+            console.log('No hay datos en localStorage');
+            mostrarSinRegistros();
+          }
+        } catch (error) {
+          console.error('Error al cargar registros:', error);
+          mostrarSinRegistros();
+        }
+        
+        ocultarCargando();
+      }
+
+
+      // Función para actualizar la tabla con los datos filtrados y paginados
+      function actualizarTabla() {
+        console.log('Actualizando tabla...');
+        
+        // Aplicar filtro de búsqueda si existe
+        const registrosMostrar = filtrarRegistros();
+        
+        // Verificar si hay registros
+        if (registrosMostrar.length === 0) {
+          mostrarSinRegistros();
+          return;
+        }
+        
+        // Ocultar mensaje de sin registros
+        sinRegistros.style.display = 'none';
+        
+        // Calcular índices para paginación
+        const inicio = (paginaActual - 1) * registrosPorPagina;
+        const fin = Math.min(inicio + registrosPorPagina, registrosMostrar.length);
+        const registrosPaginados = registrosMostrar.slice(inicio, fin);
+        
+        // Limpiar tabla
+        tablaCuerpo.innerHTML = '';
+        
+        // Generar filas
+        registrosPaginados.forEach(registro => {
+          const fila = document.createElement('tr');
+          
+          // Fecha de Registro
+          fila.innerHTML += `<td>${registro['Fecha de Registro'] || ''}</td>`;
+          
+          // Fiscalía
+          fila.innerHTML += `<td>${registro['Fiscalía'] || ''}</td>`;
+          
+          // Fiscal a cargo - Asegúrate de verificar ambas variantes
+          const fiscalACargo = registro['Fiscal a Cargo'] || registro['Fiscal a cargo'] || '';
+          fila.innerHTML += `<td>${fiscalACargo}</td>`;
+          
+          // Carpeta Fiscal
+          fila.innerHTML += `<td>${registro['Carpeta Fiscal'] || ''}</td>`;
+          
+          // Fecha de Ingreso - Asegúrate de verificar el nombre exacto
+          const fechaIngreso = registro['Fecha Ingreso Carpeta Fiscal'] || '';
+          fila.innerHTML += `<td>${fechaIngreso}</td>`;
+          
+          // Estado con badge
+          let badgeClass = 'badge bg-secondary';
+          const estado = registro['Estado'] || 'Pendiente';
+          
+          if (estado === 'Pendiente') badgeClass = 'badge badge-pendiente';
+          else if (estado === 'Activo') badgeClass = 'badge badge-activo';
+          else if (estado === 'Cerrado') badgeClass = 'badge badge-cerrado';
+          
+          fila.innerHTML += `<td><span class="${badgeClass}">${estado}</span></td>`;
+          
+          // Botones de acción
+          const id = registro.ID || '';
+          fila.innerHTML += `
+            <td class="action-buttons">
+              <button class="btn btn-sm btn-info" onclick="verDetalles('${id}')" title="Ver detalles">
+                <i class="fas fa-eye"></i>
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="editarRegistro('${id}')" title="Editar">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="eliminarRegistro('${id}')" title="Eliminar">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          
+          tablaCuerpo.appendChild(fila);
+        });
+        
+        // Actualizar información de paginación
+        infoRegistros.textContent = `Mostrando ${inicio + 1} a ${fin} de ${registrosMostrar.length} registros`;
+        
+        // Actualizar estado de botones de paginación
+        btnAnterior.disabled = paginaActual <= 1;
+        btnSiguiente.disabled = paginaActual >= Math.ceil(registrosMostrar.length / registrosPorPagina);
+        
+        // Agregar event listeners a los botones
+        document.querySelectorAll('.btn-ver').forEach(btn => {
+          btn.addEventListener('click', () => verDetalles(btn.dataset.id));
+        });
+        
+        document.querySelectorAll('.btn-editar').forEach(btn => {
+          btn.addEventListener('click', () => editarRegistro(btn.dataset.id));
+        });
+        
+        document.querySelectorAll('.btn-eliminar').forEach(btn => {
+          btn.addEventListener('click', () => eliminarRegistro(btn.dataset.id));
+        });
+      }
+      
+      // Función para filtrar registros según búsqueda
+      function filtrarRegistros() {
+        if (!terminoBusqueda) return registrosFiltrados;
+        
+        const busqueda = terminoBusqueda.toLowerCase();
+        return registrosFiltrados.filter(registro => {
+          return Object.values(registro).some(valor => {
+            return valor && typeof valor === 'string' && valor.toLowerCase().includes(busqueda);
+          });
+        });
+      }
+      
+
+
+      // Función para buscar registros
+      function buscarRegistros() {
+        terminoBusqueda = searchInput.value.trim();
+        paginaActual = 1; // Volver a la primera página
+        actualizarTabla();
+      }
+      
+      // Funciones de paginación
+      function paginaAnterior() {
+        if (paginaActual > 1) {
+          paginaActual--;
+          actualizarTabla();
+        }
+      }
+      
+      function paginaSiguiente() {
+        const totalPaginas = Math.ceil(filtrarRegistros().length / registrosPorPagina);
+        if (paginaActual < totalPaginas) {
+          paginaActual++;
+          actualizarTabla();
+        }
+      }
+      
+      // Función para mostrar mensaje de sin registros
+      function mostrarSinRegistros() {
+        tablaCuerpo.innerHTML = '';
+        sinRegistros.style.display = 'block';
+        infoRegistros.textContent = 'Mostrando 0 de 0 registros';
+        btnAnterior.disabled = true;
+        btnSiguiente.disabled = true;
+      }
+      
+      // Función para ver detalles de un registro
+      function verDetalles(id) {
+        console.log('Ver detalles del registro ID:', id);
+        
+        try {
+          const datosString = localStorage.getItem(STORAGE_KEY);
+          if (!datosString) {
+            alert('No se encontraron datos');
+            return;
+          }
+          
+          const datos = JSON.parse(datosString);
+          const registro = datos.find(item => item.ID === id || item.id === id);
+          
+          if (!registro) {
+            alert('No se encontró el registro');
+            return;
+          }
+          
+          // Crear modal para mostrar detalles
+          let modalHTML = `
+            <div class="modal fade" id="modalDetalles" tabindex="-1" aria-hidden="true">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Detalles del Registro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="container-fluid">
+          `;
+          
+          // Campos importantes primero
+          const camposImportantes = [
+            'ID', 'Carpeta Fiscal', 'Fiscalía', 'Fiscal a cargo', 
+            'Fecha de Registro', 'Fecha de Ingreso Carpeta Fiscal', 'Estado'
+          ];
+          
+          // Agregar campos importantes
+          camposImportantes.forEach(campo => {
+            if (registro[campo]) {
+              modalHTML += `
+                <div class="row mb-2">
+                  <div class="col-md-4 fw-bold text-primary">${campo}:</div>
+                  <div class="col-md-8">${registro[campo]}</div>
+                </div>
+              `;
+            }
+          });
+          
+          // Agregar el resto de campos
+          for (const [campo, valor] of Object.entries(registro)) {
+            if (!camposImportantes.includes(campo) && valor) {
+              modalHTML += `
+                <div class="row mb-2">
+                  <div class="col-md-4 fw-bold">${campo}:</div>
+                  <div class="col-md-8">${valor}</div>
+                </div>
+              `;
+            }
+          }
+          
+          modalHTML += `
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          // Remover modal anterior si existe
+          const modalAnterior = document.getElementById('modalDetalles');
+          if (modalAnterior) {
+            modalAnterior.remove();
+          }
+          
+          // Agregar el modal al body
+          document.body.insertAdjacentHTML('beforeend', modalHTML);
+          
+          // Mostrar el modal
+          const modal = new bootstrap.Modal(document.getElementById('modalDetalles'));
+          modal.show();
+          
+        } catch (error) {
+          console.error('Error al mostrar detalles:', error);
+          alert('Error al mostrar los detalles');
+        }
+      }
+
+
+      function editarRegistro(id) {
+        console.log("Abriendo modal para editar registro ID:", id);
+        
+        try {
+          // Limpiar listas de items para la edición
+          // Limpiar listas de items para la edición
+          editAgraviadosList = [];
+          editDenunciadosList = [];
+          editEmpresasList = [];
+          editInstrumentosList = [];
+          editTelefonosList = [];
+          editBandasList = []; // Nueva
+          editImeiList = []; // Nueva
+          editCuentasList = []; // Nueva
+          editTitularesList = []; // Nueva
+
+          // Limpiar contenedores
+          $('#editAgraviadosContainer').empty();
+          $('#editDenunciadosContainer').empty();
+          $('#editEmpresasContainer').empty();
+          $('#editInstrumentosExtraContainer').empty();
+          $('#editTelefonosContainer').empty();
+          $('#editBandasContainer').empty(); // Nueva
+          $('#editImeiContainer').empty(); // Nueva
+          $('#editCuentasContainer').empty(); // Nueva
+          $('#editTitularesContainer').empty(); // Nueva
+          
+          // Recuperar registros de localStorage
+          const datosString = localStorage.getItem('fecor_registros');
+          
+          if (!datosString) {
+            alert("No hay registros almacenados");
+            return;
+          }
+          
+          // Parsear los datos
+          const datos = JSON.parse(datosString);
+          
+          // Buscar el registro por ID
+          let registro = null;
+          
+          for (let i = 0; i < datos.length; i++) {
+            if (String(datos[i].ID) === String(id) || 
+                String(datos[i].id) === String(id)) {
+              registro = datos[i];
+              break;
+            }
+          }
+          
+          if (!registro) {
+            alert("No se encontró el registro a editar");
+            return;
+          }
+          
+          console.log("Registro encontrado para edición:", registro);
+          
+          // Mostrar el modal primero
+          const modalEdicion = new bootstrap.Modal(document.getElementById('modalEdicion'));
+          modalEdicion.show();
+          
+          // Eliminar alertas anteriores si existen
+          $('.alert-warning').remove();
+          
+          // Esperar a que el modal esté visible
+          setTimeout(function() {
+            // Asignar ID
+            document.getElementById('editId').value = id;
+            
+            // Para cada campo select, usar una lógica más estricta que respete el valor original
+            $('#formEdicion select').each(function() {
+              const selectElement = $(this);
+              const fieldName = selectElement.attr('name');
+              
+              if (!fieldName || !registro[fieldName]) return;
+              
+              const fieldValue = registro[fieldName];
+              console.log(`Procesando select ${fieldName}: ${fieldValue}`);
+              
+              // Verificar si contiene "OTROS:" o similar
+              if (fieldValue.includes('OTROS:') || fieldValue.includes('OTRO:')) {
+                // Si el select tiene una opción "Otros" u "Otro", seleccionarla
+                selectElement.find('option').each(function() {
+                  if ($(this).val() === 'Otros' || $(this).val() === 'Otro') {
+                    $(this).prop('selected', true);
+                    
+                    // Buscar el contenedor correspondiente para mostrar y llenar
+                    const containerId = selectElement.attr('id').replace('edit', '') + 'Container';
+                    $(`#edit${containerId}`).show();
+                    
+                    // Extraer el valor después de "OTROS:" o "OTRO:"
+                    let valorPersonalizado = '';
+                    if (fieldValue.includes('OTROS:')) {
+                      valorPersonalizado = fieldValue.substring(fieldValue.indexOf('OTROS:') + 6).trim();
+                    } else {
+                      valorPersonalizado = fieldValue.substring(fieldValue.indexOf('OTRO:') + 5).trim();
+                    }
+                    
+                    // Buscar el input correspondiente
+                    const inputId = selectElement.attr('id').replace('edit', '') + 'Input';
+                    $(`#edit${inputId}`).val(valorPersonalizado);
+                    
+                    return false; // Salir del bucle
+                  }
+                });
+              } else {
+                // Intentar encontrar una opción que coincida exactamente (ignorando mayúsculas/minúsculas)
+                let encontrado = false;
+                
+                selectElement.find('option').each(function() {
+                  if ($(this).val() && $(this).val().toUpperCase() === fieldValue.toUpperCase()) {
+                    $(this).prop('selected', true);
+                    encontrado = true;
+                    return false; // Salir del bucle
+                  }
+                });
+                
+                // Si no hay coincidencia exacta, buscar coincidencia parcial
+                if (!encontrado) {
+                  selectElement.find('option').each(function() {
+                    if ($(this).val() && 
+                      (fieldValue.toUpperCase().includes($(this).val().toUpperCase()) || 
+                        $(this).val().toUpperCase().includes(fieldValue.toUpperCase()))) {
+                      $(this).prop('selected', true);
+                      encontrado = true;
+                      return false; // Salir del bucle
+                    }
+                  });
+                }
+                
+                // IMPORTANTE: Si no hay coincidencia, NO seleccionar la primera opción
+                // En su lugar, mostrar el valor original en algún lugar visible
+                if (!encontrado && fieldValue) {
+                  console.log(`No se encontró coincidencia para ${fieldName}: ${fieldValue}`);
+                  
+                  // Crear un span para mostrar el valor original
+                  const valueDisplay = $(`<div class="alert alert-warning mt-2">Valor original: <strong>${fieldValue}</strong></div>`);
+                  selectElement.after(valueDisplay);
+                }
+              }
+              
+              // Disparar el evento change para activar cualquier lógica dependiente
+              selectElement.trigger('change');
+            });
+            
+            // Manejar específicamente los campos de monto
+            if (registro['Monto Solicitado'] !== undefined) {
+              const montoSolicitado = registro['Monto Solicitado'];
+              console.log("Monto Solicitado en registro:", montoSolicitado, typeof montoSolicitado);
+              
+              // Asegurarse de que sea un número
+              if (typeof montoSolicitado === 'number') {
+                $('#editMontoSolicitado').val(montoSolicitado);
+              } else {
+                // Intentar convertir a número si es string
+                const montoNumerico = parseFloat(montoSolicitado);
+                if (!isNaN(montoNumerico)) {
+                  $('#editMontoSolicitado').val(montoNumerico);
+                } else {
+                  $('#editMontoSolicitado').val(montoSolicitado);
+                }
+              }
+              
+              console.log("Monto Solicitado después de asignar:", $('#editMontoSolicitado').val());
+            }
+            
+            if (registro['Monto Pagado'] !== undefined) {
+              const montoPagado = registro['Monto Pagado'];
+              console.log("Monto Pagado en registro:", montoPagado, typeof montoPagado);
+              
+              // Asegurarse de que sea un número
+              if (typeof montoPagado === 'number') {
+                $('#editMontoPagado').val(montoPagado);
+              } else {
+                // Intentar convertir a número si es string
+                const montoNumerico = parseFloat(montoPagado);
+                if (!isNaN(montoNumerico)) {
+                  $('#editMontoPagado').val(montoNumerico);
+                } else {
+                  $('#editMontoPagado').val(montoPagado);
+                }
+              }
+              
+              console.log("Monto Pagado después de asignar:", $('#editMontoPagado').val());
+            }
+            
+            // Campos de texto normales
+            // Fiscal a Cargo
+            if (registro['Fiscal a Cargo'] || registro['Fiscal a cargo']) {
+              $('#editFiscalCargo').val(registro['Fiscal a Cargo'] || registro['Fiscal a cargo']);
+            }
+            
+            // Unidad de Inteligencia
+            if (registro['Unidad de Inteligencia']) {
+              $('#editUnidadInteligencia').val(registro['Unidad de Inteligencia']);
+            }
+            
+            // Instructor a Cargo
+            if (registro['Instructor a Cargo']) {
+              $('#editInstructorCargo').val(registro['Instructor a Cargo']);
+            }
+            
+            // Carpeta Fiscal
+            if (registro['Carpeta Fiscal']) {
+              $('#editCarpetaFiscal').val(registro['Carpeta Fiscal']);
+            }
+            
+            // Fecha del Hecho
+            if (registro['Fecha del Hecho']) {
+              formatearFecha('#editFechaHecho', registro['Fecha del Hecho']);
+            }
+            
+            // Fecha Ingreso Carpeta Fiscal
+            if (registro['Fecha Ingreso Carpeta Fiscal']) {
+              formatearFecha('#editFechaIngreso', registro['Fecha Ingreso Carpeta Fiscal']);
+            }
+            
+            // Delitos
+            if (registro['Delitos']) {
+              $('#editDelitos').val(registro['Delitos']);
+            }
+            
+            // Lugar de los Hechos
+            if (registro['Lugar de los Hechos']) {
+              $('#editLugarHechos').val(registro['Lugar de los Hechos']);
+            }
+            
+            // Datos de Interés del Denunciado (checkboxes)
+            if (registro['Datos de Interés del Denunciado']) {
+              const datosInteres = registro['Datos de Interés del Denunciado'];
+              console.log("Datos de Interés encontrados:", datosInteres);
+              
+              // Limpiar checkboxes
+              $('#editDatosTatuajes').prop('checked', false);
+              $('#editDatosCicatrices').prop('checked', false);
+              $('#editDatosOtros').prop('checked', false);
+              
+              // Marcar según los datos
+              if (datosInteres.includes('TATUAJES')) {
+                $('#editDatosTatuajes').prop('checked', true);
+              }
+              
+              if (datosInteres.includes('CICATRICES')) {
+                $('#editDatosCicatrices').prop('checked', true);
+              }
+              
+              if (datosInteres.includes('OTROS:')) {
+                $('#editDatosOtros').prop('checked', true);
+                const otrosValor = datosInteres.substring(datosInteres.indexOf('OTROS:') + 6).trim();
+                $('#editOtrosDatosInput').val(otrosValor);
+                $('#editOtrosDatosContainer').show();
+              }
+            }
+
+            // Nombre/Apodo Banda Criminal
+            if (registro['Nombre/Apodo Banda Criminal']) {
+              const bandas = registro['Nombre/Apodo Banda Criminal'].split('\n');
+              bandas.forEach(banda => {
+                if (banda.trim()) {
+                  addItemToEditList(banda, editBandasList, '#editBandasContainer', 'banda');
+                }
+              });
+            }
+
+            // Cantidad de Miembros de Banda
+            if (registro['Cantidad de Miembros de Banda']) {
+              $('#editCantidadMiembros').val(registro['Cantidad de Miembros de Banda']);
+            }
+
+            
+            // Modalidad de Violencia
+            if (registro['Modalidad de Violencia']) {
+              $('#editModalidadViolencia').val(registro['Modalidad de Violencia']);
+            }
+            
+            // Modalidad de Amenaza
+            if (registro['Modalidad de Amenaza']) {
+              $('#editModalidadAmenaza').val(registro['Modalidad de Amenaza']);
+            }
+            
+            // Atentados Cometidos
+            if (registro['Atentados Cometidos']) {
+              $('#editAtentadosCometidos').val(registro['Atentados Cometidos']);
+            }
+            
+            // Sumilla de Hechos
+            if (registro['Sumilla de Hechos']) {
+              $('#editSumilla').val(registro['Sumilla de Hechos']);
+            }
+            
+            // Observaciones
+            if (registro['Observaciones']) {
+              $('#editObservaciones').val(registro['Observaciones']);
+            }
+            
+            // MANEJAR LISTAS DE ELEMENTOS
+            
+            // Agraviados
+            if (registro['Agraviados']) {
+              const agraviados = registro['Agraviados'].split('\n');
+              agraviados.forEach(agraviado => {
+                if (agraviado.trim()) {
+                  addItemToEditList(agraviado, editAgraviadosList, '#editAgraviadosContainer', 'agraviado');
+                }
+              });
+            }
+            
+            // Denunciados
+            if (registro['Denunciados']) {
+              const denunciados = registro['Denunciados'].split('\n');
+              denunciados.forEach(denunciado => {
+                if (denunciado.trim()) {
+                  addItemToEditList(denunciado, editDenunciadosList, '#editDenunciadosContainer', 'denunciado');
+                }
+              });
+            }
+            
+            // Tipo de Empresa
+            if (registro['Tipo de Empresa']) {
+              const empresas = registro['Tipo de Empresa'].split('\n');
+              empresas.forEach(empresa => {
+                if (empresa.trim()) {
+                  addItemToEditList(empresa, editEmpresasList, '#editEmpresasContainer', 'empresa');
+                }
+              });
+            }
+            
+            // Instrumentos de Extorsión
+            if (registro['Instrumentos de Extorsión']) {
+              const instrumentos = registro['Instrumentos de Extorsión'].split('\n');
+              instrumentos.forEach(instrumento => {
+                if (instrumento === 'MOTOS') {
+                  $('#editInstrumentoMotos').prop('checked', true);
+                } else if (instrumento === 'CARROS') {
+                  $('#editInstrumentoCarros').prop('checked', true);
+                } else if (instrumento.trim()) {
+                  $('#editInstrumentoOtros').prop('checked', true);
+                  $('#editOtrosInstrumentosContainer').show();
+                  addItemToEditList(instrumento, editInstrumentosList, '#editInstrumentosExtraContainer', 'instrumento');
+                }
+              });
+            }
+            
+            // Números Telefónicos
+            if (registro['Números Telefónicos']) {
+              const telefonos = registro['Números Telefónicos'].split('\n');
+              telefonos.forEach(telefono => {
+                if (telefono.trim()) {
+                  addItemToEditList(telefono, editTelefonosList, '#editTelefonosContainer', 'telefono');
+                }
+              });
+            }
+
+            /*             // IMEI de Teléfonos
+            if (registro['IMEI de Teléfonos']) {
+              const imeis = registro['IMEI de Teléfonos'].split('\n');
+              imeis.forEach(imei => {
+                if (imei.trim()) {
+                  addItemToEditList(imei, editImeiList, '#editImeiContainer', 'imei');
+                }
+              });
+            }     */
+
+            // Manejo específico del campo IMEI de Teléfonos
+            // Manejar IMEI de Teléfonos - Añadir como bloque independiente
+            if (registro['IMEI de Teléfonos']) {
+              try {
+                // Limpiar lista y contenedor existentes
+                editImeiList = [];
+                $('#editImeiContainer').empty();
+                
+                // Procesar cada IMEI
+                const imeisText = registro['IMEI de Teléfonos'];
+                console.log("IMEIs encontrados:", imeisText);
+                
+                // Dividir por saltos de línea y procesar
+                if (imeisText && imeisText.includes('\n')) {
+                  const imeis = imeisText.split('\n');
+                  imeis.forEach(function(imei) {
+                    if (imei && imei.trim()) {
+                      addItemToEditList(imei.trim(), editImeiList, '#editImeiContainer', 'imei');
+                    }
+                  });
+                } 
+                // Si no tiene saltos de línea, tratar como un solo valor
+                else if (imeisText && imeisText.trim()) {
+                  addItemToEditList(imeisText.trim(), editImeiList, '#editImeiContainer', 'imei');
+                }
+              } catch (e) {
+                console.error("Error al procesar IMEIs:", e);
+              }
+            }
+
+            // Manejar Tipo de Pago - Añadir como bloque independiente
+            // Manejar Tipo de Pago de forma más robusta
+            if (registro['Tipo de Pago']) {
+              try {
+                const tipoPago = registro['Tipo de Pago'];
+                console.log("Tipo de pago encontrado:", tipoPago);
+                
+                // Reiniciar campos
+                $('#editTipoPago').val('');
+                $('#editOtroTipoPagoInput').val('');
+                $('#editOtroTipoPagoContainer').hide();
+                
+                // Si contiene "OTRO:"
+                if (tipoPago.toUpperCase().includes('OTRO:')) {
+                  $('#editTipoPago').val('Otro');
+                  $('#editOtroTipoPagoInput').val(tipoPago.substring(tipoPago.indexOf('OTRO:') + 5).trim());
+                  $('#editOtroTipoPagoContainer').show();
+                } 
+                // Comparación normalizada para otros valores
+                else {
+                  // Función para normalizar texto para comparación
+                  function normalizar(texto) {
+                    return texto.toUpperCase()
+                      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Eliminar acentos
+                      .replace(/\s+/g, ""); // Eliminar espacios
+                  }
+                  
+                  const tipoPagoNormalizado = normalizar(tipoPago);
+                  let encontrado = false;
+                  
+                  // Recorrer todas las opciones y comparar de forma normalizada
+                  $('#editTipoPago option').each(function() {
+                    if ($(this).val() && normalizar($(this).val()) === tipoPagoNormalizado) {
+                      $('#editTipoPago').val($(this).val());
+                      encontrado = true;
+                      console.log("Tipo de Pago seleccionado:", $(this).val());
+                      return false; // Salir del bucle
+                    }
+                  });
+                  
+                  // Si no se encontró coincidencia, mostrar el valor original
+                  if (!encontrado && tipoPago.trim()) {
+                    console.log("No se encontró coincidencia normalizada para:", tipoPago);
+                    $('#editTipoPago').append(`<option value="${tipoPago}">${tipoPago}</option>`);
+                    $('#editTipoPago').val(tipoPago);
+                  }
+                }
+                
+                // Disparar evento change
+                $('#editTipoPago').trigger('change');
+              } catch (e) {
+                console.error("Error al procesar Tipo de Pago:", e);
+              }
+            }
+
+
+            // Cuenta de Pago
+            if (registro['Cuenta de Pago']) {
+              const cuentas = registro['Cuenta de Pago'].split('\n');
+              cuentas.forEach(cuenta => {
+                if (cuenta.trim()) {
+                  addItemToEditList(cuenta, editCuentasList, '#editCuentasContainer', 'cuenta');
+                }
+              });
+            }
+
+            // Titulares de Pago
+            if (registro['Titulares de Pago']) {
+              const titulares = registro['Titulares de Pago'].split('\n');
+              titulares.forEach(titular => {
+                if (titular.trim()) {
+                  addItemToEditList(titular, editTitularesList, '#editTitularesContainer', 'titular');
+                }
+              });
+            }
+
+            // Número de Pagos
+            if (registro['Número de Pagos']) {
+              $('#editNumeroPagos').val(registro['Número de Pagos']);
+            }
+
+            // Otros Tipos de Pago
+            if (registro['Otros Tipos de Pago']) {
+              $('#editOtrosTiposPago').val(registro['Otros Tipos de Pago']);
+            }
+
+            /*             // Tipo de Pago
+            if (registro['Tipo de Pago']) {
+              const tipoPago = registro['Tipo de Pago'];
+              
+              if (tipoPago.startsWith('OTRO:')) {
+                $('#editTipoPago').val('Otro').trigger('change');
+                $('#editOtroTipoPagoInput').val(tipoPago.substring(5).trim());
+                $('#editOtroTipoPagoContainer').show();
+              } else {
+                $('#editTipoPago').val(tipoPago).trigger('change');
+              }
+            } */           
+                     
+            // Actualizar contadores
+            try {
+              updateCharCounter('#editSumilla', '#editSumillaCounter');
+              updateCharCounter('#editObservaciones', '#editObservacionesCounter');
+            } catch (e) {
+              console.error("Error al actualizar contadores:", e);
+            }
+            
+            console.log("Formulario de edición completamente cargado");
+          }, 500);
+          
+        } catch (error) {
+          console.error("Error al abrir modal de edición:", error);
+          alert("Error al cargar los datos para edición: " + error.message);
+        }
+      }
+
+      // Función auxiliar para formatear fechas - Añadir en historial.html
+      function formatearFecha(selector, fechaStr) {
+        try {
+          if (!fechaStr) return;
+          
+          // Si ya tiene el formato yyyy-mm-dd, usarla directamente
+          if (/^\d{4}-\d{2}-\d{2}$/.test(fechaStr)) {
+            $(selector).val(fechaStr);
+            return;
+          }
+          
+          // Si tiene formato dd/mm/yyyy, convertirla
+          if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(fechaStr)) {
+            const partes = fechaStr.split('/');
+            const fecha = `${partes[2]}-${partes[1].padStart(2, '0')}-${partes[0].padStart(2, '0')}`;
+            $(selector).val(fecha);
+            return;
+          }
+          
+          // Si es una fecha con formato diferente, intentar convertirla
+          const fecha = new Date(fechaStr);
+          if (!isNaN(fecha.getTime())) {
+            const fechaFormateada = fecha.toISOString().split('T')[0];
+            $(selector).val(fechaFormateada);
+          }
+        } catch (e) {
+          console.error("Error al formatear fecha:", e, fechaStr);
+        }
+      }
+
+      // Función para manejar campos especiales en el modal
+      function handleSpecialFieldsForEdit(data) {
+        // Agraviados
+        if (data['Agraviados']) {
+          const agraviados = data['Agraviados'].split('\n');
+          agraviados.forEach(agraviado => {
+            if (agraviado.trim()) {
+              addItemToEditList(agraviado, editAgraviadosList, '#editAgraviadosContainer', 'agraviado');
+            }
+          });
+        }
+        
+        // Denunciados
+        if (data['Denunciados']) {
+          const denunciados = data['Denunciados'].split('\n');
+          denunciados.forEach(denunciado => {
+            if (denunciado.trim()) {
+              addItemToEditList(denunciado, editDenunciadosList, '#editDenunciadosContainer', 'denunciado');
+            }
+          });
+        }
+        
+        // Empresas
+        if (data['Tipo de Empresa']) {
+          const empresas = data['Tipo de Empresa'].split('\n');
+          empresas.forEach(empresa => {
+            if (empresa.trim()) {
+              addItemToEditList(empresa, editEmpresasList, '#editEmpresasContainer', 'empresa');
+            }
+          });
+        }
+        
+        // Datos de interés del denunciado
+        if (data['Datos de Interés del Denunciado']) {
+          const datosInteres = data['Datos de Interés del Denunciado'].split(', ');
+          datosInteres.forEach(dato => {
+            if (dato === 'Tatuajes') {
+              $('#editDatosTatuajes').prop('checked', true);
+            } else if (dato === 'Cicatrices') {
+              $('#editDatosCicatrices').prop('checked', true);
+            } else if (dato.startsWith('Otros:')) {
+              $('#editDatosOtros').prop('checked', true);
+              $('#editOtrosDatosContainer').show();
+              $('#editOtrosDatosInput').val(dato.substring(6).trim());
+            }
+          });
+        }
+        
+        // Forma de inicio con "Otros"
+        if (data['Forma de Inicio de Investigación'] && data['Forma de Inicio de Investigación'].startsWith('Otros:')) {
+          $('#editFormaInicio').val('Otros');
+          $('#editOtroFormaInicioContainer').show();
+          $('#editOtroFormaInicio').val(data['Forma de Inicio de Investigación'].substring(6).trim());
+        }
+      }
+
+      // Función para agregar elementos a listas de edición
+      /*       function addItemToEditList(item, list, containerSelector, itemType) {
+        list.push(item);
+        
+        const itemHtml = `
+          <div class="added-item" data-type="${itemType}" data-value="${item}">
+            <span class="added-item-text">${item}</span>
+            <button type="button" class="btn-remove">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        `;
+        
+        $(containerSelector).append(itemHtml);
+        
+        // Manejar clic en botón de eliminar
+        $(containerSelector + ' .btn-remove').off('click').on('click', function() {
+          const itemToRemove = $(this).parent().data('value');
+          const itemType = $(this).parent().data('type');
+          
+          // Eliminar elemento de la lista correspondiente
+          if (itemType === 'agraviado') {
+            removeItemFromList(itemToRemove, editAgraviadosList);
+          } else if (itemType === 'denunciado') {
+            removeItemFromList(itemToRemove, editDenunciadosList);
+          } else if (itemType === 'empresa') {
+            removeItemFromList(itemToRemove, editEmpresasList);
+          }
+          
+          // Eliminar elemento del DOM
+          $(this).parent().remove();
+        });
+      } */
+
+      function addItemToEditList(item, list, containerSelector, itemType) {
+        list.push(item);
+        
+        const itemHtml = `
+          <div class="added-item" data-type="${itemType}" data-value="${item}">
+            <span class="added-item-text">${item}</span>
+            <button type="button" class="btn-remove">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+        `;
+        
+        $(containerSelector).append(itemHtml);
+        
+        // Manejar clic en botón de eliminar
+        $(containerSelector + ' .btn-remove').off('click').on('click', function() {
+          const itemToRemove = $(this).parent().data('value');
+          const itemType = $(this).parent().data('type');
+          
+          // Eliminar elemento de la lista correspondiente
+          switch(itemType) {
+            case 'agraviado':
+              removeItemFromList(itemToRemove, editAgraviadosList);
+              break;
+            case 'denunciado':
+              removeItemFromList(itemToRemove, editDenunciadosList);
+              break;
+            case 'empresa':
+              removeItemFromList(itemToRemove, editEmpresasList);
+              break;
+            case 'banda':
+              removeItemFromList(itemToRemove, editBandasList);
+              break;
+            case 'telefono':
+              removeItemFromList(itemToRemove, editTelefonosList);
+              break;
+            case 'imei':
+              removeItemFromList(itemToRemove, editImeiList);
+              break;
+            case 'cuenta':
+              removeItemFromList(itemToRemove, editCuentasList);
+              break;
+            case 'titular':
+              removeItemFromList(itemToRemove, editTitularesList);
+              break;
+            case 'instrumento':
+              removeItemFromList(itemToRemove, editInstrumentosList);
+              break;
+          }
+          
+          // Eliminar elemento del DOM
+          $(this).parent().remove();
+        });
+      }
+
+      function guardarCambiosModal() {
+        try {
+          const formulario = document.getElementById('formEdicion');
+          const id = document.getElementById('editId').value;
+          
+          if (!id) {
+            alert("ID de registro no encontrado");
+            return;
+          }
+          
+          // Crear objeto con los datos del formulario
+          const formData = {};
+          
+          // Primero, obtener todos los valores de los campos tradicionales
+          const elementos = formulario.elements;
+          
+          for (let i = 0; i < elementos.length; i++) {
+            const elemento = elementos[i];
+            const nombreCampo = elemento.name;
+            
+            if (!nombreCampo || nombreCampo === '') continue;
+            
+            // Obtener valor según el tipo de elemento
+            if (elemento.type === 'checkbox') {
+              // No guardar checkboxes individuales, se manejan en campos consolidados
+              if (nombreCampo.startsWith('edit')) continue;
+              
+              formData[nombreCampo] = elemento.checked ? 'Sí' : 'No';
+            } else {
+              formData[nombreCampo] = elemento.value;
+            }
+          }
+          
+          // Asegurar que el ID esté presente
+          formData.ID = id;
+          
+          // Cambiar el estado a "ACTUALIZADO"
+          formData['Estado'] = 'ACTUALIZADO';
+          
+          // Consolidar campos múltiples
+          
+          // Añadir dentro de la función, en la sección donde se consolidan los campos múltiples
+          // Nombre/Apodo Banda Criminal
+          formData['Nombre/Apodo Banda Criminal'] = editBandasList.join('\n');
+
+          // IMEI de Teléfonos
+          // En la función guardarCambiosModal donde se consolidan los campos
+          // IMEI de Teléfonos
+          formData['IMEI de Teléfonos'] = editImeiList.join('\n');
+
+          // Tipo de Pago
+          if ($('#editTipoPago').val() === 'Otro' && $('#editOtroTipoPagoInput').val()) {
+            formData['Tipo de Pago'] = 'OTRO: ' + $('#editOtroTipoPagoInput').val();
+          } else if ($('#editTipoPago').val()) {
+            formData['Tipo de Pago'] = $('#editTipoPago').val();
+          }
+
+
+          // Cuenta de Pago
+          formData['Cuenta de Pago'] = editCuentasList.join('\n');
+
+          // Titulares de Pago
+          formData['Titulares de Pago'] = editTitularesList.join('\n');
+
+          // Agraviados
+          formData['Agraviados'] = editAgraviadosList.join('\n');
+          
+          // Denunciados
+          formData['Denunciados'] = editDenunciadosList.join('\n');
+          
+          // Tipo de Empresa  
+          formData['Tipo de Empresa'] = editEmpresasList.join('\n');
+          
+          // Números Telefónicos
+          formData['Números Telefónicos'] = editTelefonosList.join('\n');
+          
+          // Datos de interés del denunciado
+          let datosInteres = [];
+          if ($('#editDatosTatuajes').prop('checked')) datosInteres.push('Tatuajes');
+          if ($('#editDatosCicatrices').prop('checked')) datosInteres.push('Cicatrices');
+          if ($('#editDatosOtros').prop('checked') && $('#editOtrosDatosInput').val()) {
+            datosInteres.push('Otros: ' + $('#editOtrosDatosInput').val());
+          }
+          formData['Datos de Interés del Denunciado'] = datosInteres.join(', ');
+          
+          // Instrumentos de extorsión
+          let instrumentos = [];
+          if ($('#editInstrumentoMotos').prop('checked')) instrumentos.push('Motos');
+          if ($('#editInstrumentoCarros').prop('checked')) instrumentos.push('Carros');
+          if ($('#editInstrumentoOtros').prop('checked')) {
+            instrumentos = instrumentos.concat(editInstrumentosList);
+          }
+          formData['Instrumentos de Extorsión'] = instrumentos.join('\n');
+          
+          // Forma de inicio con "Otros"
+          if ($('#editFormaInicio').val() === 'Otros' && $('#editOtroFormaInicio').val()) {
+            formData['Forma de Inicio de Investigación'] = 'Otros: ' + $('#editOtroFormaInicio').val();
+          }
+          
+          // Forma de pago con "Otro"
+          if ($('#editFormaPago').val() === 'Otro' && $('#editOtraFormaPagoInput').val()) {
+            formData['Forma de Pago'] = 'Otro: ' + $('#editOtraFormaPagoInput').val();
+          }
+          
+          // Convertir todos los valores a mayúsculas
+          for (const key in formData) {
+            if (typeof formData[key] === 'string' && key !== 'ID') {
+              formData[key] = formData[key].toUpperCase();
+            }
+          }
+
+
+          
+          console.log("Datos a guardar (en mayúsculas):", formData);
+          
+          // Mostrar indicador de carga
+          const btnGuardar = document.getElementById('btnGuardarCambios');
+          const textoOriginal = btnGuardar.innerHTML;
+          btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...';
+          btnGuardar.disabled = true;
+          
+          // Primero actualizar en localStorage
+          actualizarRegistroEnLocalStorage(id, formData);
+          
+          // Luego llamar a la función del servidor para actualizar
+          google.script.run
+            .withSuccessHandler(function(result) {
+              // Restablecer botón
+              btnGuardar.innerHTML = textoOriginal;
+              btnGuardar.disabled = false;
+              
+              // Manejar respuesta null o undefined como éxito
+              if (result === null || result === undefined) {
+                console.log("Respuesta del servidor es null o undefined, pero la operación se considera exitosa");
+                
+                try {
+                  // Cerrar el modal
+                  $('#modalEdicion').modal('hide');
+                } catch (e) {
+                  console.error("Error al cerrar modal:", e);
+                }
+                
+                alert("Registro actualizado correctamente");
+                cargarRegistros();
+                return;
+              }
+              
+              // Si hay respuesta normal
+              if (result.success) {
+                // Cerrar el modal
+                try {
+                  $('#modalEdicion').modal('hide');
+                } catch (e) {
+                  console.error("Error al cerrar modal:", e);
+                }
+                
+                alert("Registro actualizado correctamente");
+                cargarRegistros();
+              } else {
+                alert("Error al actualizar: " + (result.message || "No se pudo completar la operación"));
+              }
+            })
+            .withFailureHandler(function(error) {
+              btnGuardar.innerHTML = textoOriginal;
+              btnGuardar.disabled = false;
+              console.error("Error al actualizar registro:", error);
+              
+              // A pesar del error, los datos ya se guardaron en localStorage
+              alert("Los cambios se han guardado localmente, pero hubo un error con el servidor. Los datos pueden verse reflejados en la próxima carga.");
+              
+              try {
+                $('#modalEdicion').modal('hide');
+              } catch (e) {
+                console.error("Error al cerrar modal:", e);
+              }
+              
+              cargarRegistros();
+            })
+            .updateCaso(id, formData);
+            
+        } catch (error) {
+          console.error("Error al guardar cambios:", error);
+          alert("Error al procesar el formulario: " + error.message);
+        }
+      }
+
+      //----------------------------------------------------------------------------------------------------------
+      // Función para eliminar un registro
+      function eliminarRegistro(id) {
+        console.log('Eliminar registro ID:', id);
+        
+        if (confirm('¿Está seguro que desea eliminar este registro?')) {
+          mostrarCargando();
+          
+          try {
+            // Eliminar del localStorage
+            const datosString = localStorage.getItem(STORAGE_KEY);
+            if (datosString) {
+              const datos = JSON.parse(datosString);
+              const nuevosDatos = datos.filter(item => item.ID !== id && item.id !== id);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(nuevosDatos));
+            }
+            
+            // Si hay conexión, eliminar del servidor también
+            if (navigator.onLine) {
+              google.script.run
+                .withSuccessHandler(function(result) {
+                  ocultarCargando();
+                  if (result.success) {
+                    alert('Registro eliminado correctamente');
+                  } else {
+                    alert('Advertencia: ' + result.message);
+                  }
+                  cargarRegistros(); // Recargar datos
+                })
+                .withFailureHandler(function(error) {
+                  ocultarCargando();
+                  console.error('Error al eliminar en servidor:', error);
+                  alert('El registro se ha eliminado localmente, pero hubo un error al comunicarse con el servidor.');
+                  cargarRegistros(); // Recargar datos
+                })
+                .deleteCaso(id);
+            } else {
+              ocultarCargando();
+              alert('No hay conexión a internet. El registro se ha eliminado localmente.');
+              cargarRegistros(); // Recargar datos
+            }
+          } catch (error) {
+            ocultarCargando();
+            console.error('Error al eliminar registro:', error);
+            alert('Error al eliminar el registro');
+          }
+        }
+      }
+      
+      // Función para exportar a Excel
+      function exportarExcel() {
+        mostrarCargando();
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            ocultarCargando();
+            if (resultado.success) {
+              const a = document.createElement('a');
+              a.href = 'data:' + resultado.mimeType + ';base64,' + resultado.data;
+              a.download = resultado.fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } else {
+              alert('Error al exportar a Excel: ' + resultado.message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            ocultarCargando();
+            console.error('Error exportación Excel:', error);
+            alert('Error al exportar a Excel');
+          })
+          .exportToExcel();
+      }
+      
+      // Función para exportar a PDF
+      function exportarPDF() {
+        mostrarCargando();
+        google.script.run
+          .withSuccessHandler(function(resultado) {
+            ocultarCargando();
+            if (resultado.success) {
+              const a = document.createElement('a');
+              a.href = 'data:' + resultado.mimeType + ';base64,' + resultado.data;
+              a.download = resultado.fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } else {
+              alert('Error al exportar a PDF: ' + resultado.message);
+            }
+          })
+          .withFailureHandler(function(error) {
+            ocultarCargando();
+            console.error('Error exportación PDF:', error);
+            alert('Error al exportar a PDF');
+          })
+          .exportToPDF();
+      }
+      
+      // Función para cerrar sesión
+      function cerrarSesion() {
+        mostrarCargando();
+        google.script.run
+          .withSuccessHandler(function() {
+            window.top.location.href = '<?= ScriptApp.getService().getUrl(); ?>';
+          })
+          .withFailureHandler(function(error) {
+            ocultarCargando();
+            console.error('Error al cerrar sesión:', error);
+            alert('Error al cerrar sesión');
+          })
+          .logout();
+      }
+      
+      // Función para cargar información del usuario
+      function cargarInfoUsuario() {
+        google.script.run
+          .withSuccessHandler(function(userData) {
+            if (userData) {
+              document.getElementById('username').textContent = userData.username;
+            } else {
+              window.top.location.href = '<?= ScriptApp.getService().getUrl(); ?>';
+            }
+          })
+          .withFailureHandler(function(error) {
+            console.error('Error al cargar usuario:', error);
+            window.top.location.href = '<?= ScriptApp.getService().getUrl(); ?>';
+          })
+          .getUserSession();
+      }
+      
+      // Funciones para mostrar/ocultar indicador de carga
+      function mostrarCargando() {
+        document.getElementById('loadingIndicator').style.display = 'flex';
+      }
+      
+      function ocultarCargando() {
+        document.getElementById('loadingIndicator').style.display = 'none';
+      }
+    </script>
+  </body>
+</html>
